@@ -1,0 +1,45 @@
+
+name: HomeProxy fw3 Compatibility Audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-homeproxy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Inspect firewall dependencies
+        shell: bash
+        run: |
+          set +e
+          {
+            echo "=== Makefile dependencies ==="
+            grep -nE 'firewall4|nft-tproxy|ucode-mod-digest|sing-box' Makefile
+
+            echo
+            echo "=== fw4 and nftables references ==="
+            grep -RInE 'fw4|inet fw4|nft ' root htdocs .github \
+              --exclude='build-homeproxy.yml' \
+              --exclude='*.po' \
+              --exclude='*.lmo'
+
+            echo
+            echo "=== Firewall-related files ==="
+            find root -type f | sort | grep -Ei 'firewall|nft|homeproxy|init'
+          } > fw3-audit.txt 2>&1
+          cat fw3-audit.txt
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: homeproxy-fw3-audit
+          path: fw3-audit.txt
